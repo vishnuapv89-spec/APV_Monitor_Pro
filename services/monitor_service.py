@@ -30,6 +30,10 @@ from alerts.telegram_alerts import (
 
 class MonitorService:
 
+    # ======================================================
+    # HTTP SESSION
+    # ======================================================
+
     session = requests.Session()
 
     session.headers.update({
@@ -115,35 +119,60 @@ class MonitorService:
                 http_code = response.status_code
 
                 if http_code >= 400:
+
                     status = "DOWN"
                     root_cause = f"HTTP {http_code}"
 
                 else:
+
                     status = "UP"
 
                     if response_time > MonitorService._slow_threshold():
+
                         status = "SLOW"
                         root_cause = "High Response Time"
 
                 break
 
             except requests.exceptions.Timeout:
+
                 root_cause = "Connection Timeout"
 
             except requests.exceptions.ConnectionError:
+
                 root_cause = "Connection Failed"
 
             except Exception as e:
+
                 root_cause = str(e)
 
             if attempt < retries - 1:
+
                 time.sleep(MonitorService._retry_delay())
 
-        ssl_days = MonitorService.check_ssl(monitor.url)
+        # ==================================================
+        # SSL CHECK
+        # ==================================================
+
+        ssl_days = monitor.ssl_days_remaining
+
+        if (
+            monitor.last_ssl_check is None
+            or (now - monitor.last_ssl_check)
+            > timedelta(hours=current_app.config.get("SSL_CHECK_INTERVAL_HOURS", 12))
+        ):
+
+            ssl_days = MonitorService.check_ssl(monitor.url)
+            monitor.last_ssl_check = now
 
         if ssl_days is not None and ssl_days <= 0:
+
             status = "DOWN"
             root_cause = "SSL Certificate Expired"
+
+        # ==================================================
+        # INCIDENT MANAGEMENT
+        # ==================================================
 
         open_incident = Incident.query.filter_by(
             monitor_id=monitor.id,
@@ -157,6 +186,7 @@ class MonitorService:
             if status == "DOWN":
 
                 if not open_incident:
+
                     MonitorService.create_incident(
                         monitor.id,
                         status,
@@ -187,6 +217,10 @@ class MonitorService:
                 if chat_id:
                     send_recovery_alert(chat_id, monitor.url)
 
+        # ==================================================
+        # LOG ENTRY
+        # ==================================================
+
         log = MonitorLog(
             monitor_id=monitor.id,
             status=status,
@@ -216,6 +250,9 @@ class MonitorService:
             parsed = urlparse(url)
             hostname = parsed.hostname
 
+            if not hostname:
+                return None
+
             context = ssl.create_default_context()
 
             with context.wrap_socket(
@@ -236,6 +273,7 @@ class MonitorService:
             return (expiry_date - datetime.utcnow()).days
 
         except Exception:
+
             return None
 
     # ======================================================
@@ -372,3 +410,65 @@ class MonitorService:
         avg_hours = avg_seconds / 3600
 
         return round(avg_hours, 2)
+
+    # ======================================================
+    # LOG HELPERS
+    # ======================================================
+
+    @staticmethod
+    def get_logs_last_24h(monitor_id):
+
+        start_date = datetime.utcnow() - timedelta(hours=24)
+
+        return MonitorLog.query.filter(
+            MonitorLog.monitor_id == monitor_id,
+            MonitorLog.checked_at >= start_date
+        ).order_by(
+            MonitorLog.checked_at.asc()
+        ).all()
+
+    @staticmethod
+    def get_logs_by_days(monitor_id, days):
+
+        start_date = datetime.utcnow() - timedelta(days=days)
+
+        return MonitorLog.query.filter(
+            MonitorLog.monitor_id == monitor_id,
+            MonitorLog.checked_at >= start_date
+        ).order_by(
+            MonitorLog.checked_at.asc()
+        ).all()
+
+    # ======================================================
+    # STATUS TIMELINE
+    # ======================================================
+
+    @staticmethod
+    def get_status_timeline(monitor_id):
+
+        start_time = datetime.utcnow() - timedelta(hours=24)
+
+        logs = MonitorLog.query.filter(
+            MonitorLog.monitor_id == monitor_id,
+            MonitorLog.checked_at >= start_time
+        ).order_by(
+            MonitorLog.checked_at.asc()
+        ).all()
+
+        timeline = []
+
+        for log in logs:
+
+            status = log.status
+
+            if status == "UP" and log.response_time:
+                if log.response_time > MonitorService._slow_threshold():
+                    status = "SLOW"
+
+            timeline.append({
+                "status": status,
+                "response_time": log.response_time,
+                "timestamp": log.checked_at.isoformat()
+            })
+
+        return timeline
