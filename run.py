@@ -1,3 +1,11 @@
+# ==========================================================
+# APV Monitor Pro
+# Application Entry Point
+# ==========================================================
+
+import os
+from datetime import datetime, timedelta
+
 from flask import (
     Flask,
     render_template,
@@ -9,12 +17,10 @@ from flask import (
     g
 )
 
-import os
-from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
 
 from config import Config
-from extensions import db, mail
+from extensions import init_extensions, db
 
 
 # ==========================================================
@@ -78,14 +84,13 @@ def create_app():
     # EXTENSIONS
     # ======================================================
 
-    db.init_app(app)
-    mail.init_app(app)
+    init_extensions(app)
 
     print("📧 MAIL USER:", app.config.get("MAIL_USERNAME"))
-    print("📧 MAIL PASSWORD:", app.config.get("MAIL_PASSWORD"))
+    print("📧 MAIL PASSWORD:", bool(app.config.get("MAIL_PASSWORD")))
 
     # ======================================================
-    # BLUEPRINT REGISTRATION
+    # REGISTER BLUEPRINTS
     # ======================================================
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
@@ -94,8 +99,6 @@ def create_app():
     app.register_blueprint(telegram_bp)
     app.register_blueprint(status_bp)
     app.register_blueprint(analytics_bp)
-
-    # API routes
     app.register_blueprint(api_bp)
 
     # ======================================================
@@ -106,9 +109,9 @@ def create_app():
 
         db.create_all()
 
-        _ensure_default_superadmin()
+        ensure_default_superadmin()
 
-        _start_background_scheduler(app)
+        start_background_scheduler(app)
 
     # ======================================================
     # USER CONTEXT BINDING
@@ -137,7 +140,7 @@ def create_app():
         g.current_user = user
 
     # ======================================================
-    # HOME
+    # HOME PAGE
     # ======================================================
 
     @app.route("/")
@@ -168,25 +171,34 @@ def create_app():
 
         for monitor in monitors:
 
-            uptime_24h = MonitorService.calculate_uptime_24h(monitor.id)
+            uptime_24h = MonitorService.calculate_uptime_range(monitor.id, 1)
             uptime_7d = MonitorService.calculate_uptime_range(monitor.id, 7)
-            uptime_30d = MonitorService.calculate_uptime_30d(monitor.id)
+            uptime_30d = MonitorService.calculate_uptime_range(monitor.id, 30)
             uptime_365d = MonitorService.calculate_uptime_range(monitor.id, 365)
 
             incidents = MonitorService.get_total_incidents(monitor.id)
-            response_stats = MonitorService.get_response_time_stats(monitor.id)
+
+            response_stats = MonitorService.get_response_time_stats(
+                monitor.id
+            )
+
             mtbf = MonitorService.calculate_mtbf(monitor.id)
 
             enriched_monitors.append({
+
                 "data": monitor,
+
                 "uptime": uptime_24h,
                 "uptime_7d": uptime_7d,
                 "uptime_30d": uptime_30d,
                 "uptime_365d": uptime_365d,
+
                 "incidents": incidents,
+
                 "response_min": response_stats["min"],
                 "response_max": response_stats["max"],
                 "response_avg": response_stats["avg"],
+
                 "mtbf": mtbf
             })
 
@@ -206,122 +218,18 @@ def create_app():
             return redirect(url_for("auth.login"))
 
         incidents = db.session.execute(
+
             db.select(Incident)
             .join(Monitor)
             .where(Monitor.user_id == g.current_user.id)
             .order_by(Incident.started_at.desc())
+
         ).scalars().all()
 
         return render_template(
             "dashboard/global_incidents.html",
             incidents=incidents
         )
-
-    # ======================================================
-    # ACCESS VALIDATION HELPER
-    # ======================================================
-
-    def _require_monitor_access(monitor_id):
-
-        if not g.current_user:
-            return None, (jsonify({"error": "Unauthorized"}), 401)
-
-        monitor = db.session.execute(
-            db.select(Monitor).where(
-                Monitor.id == monitor_id,
-                Monitor.user_id == g.current_user.id
-            )
-        ).scalar_one_or_none()
-
-        if not monitor:
-            return None, (jsonify({"error": "Forbidden"}), 403)
-
-        return monitor, None
-
-    # ======================================================
-    # API — 24H ACTIVITY
-    # ======================================================
-
-    @app.route("/api/monitor/<int:monitor_id>/activity-24h")
-    def activity_24h(monitor_id):
-
-        monitor, error = _require_monitor_access(monitor_id)
-        if error:
-            return error
-
-        logs = MonitorService.get_logs_last_24h(monitor_id)
-
-        activity = [{
-            "status": log.status,
-            "response_time": log.response_time,
-            "timestamp": log.checked_at.isoformat()
-        } for log in logs]
-
-        return jsonify(activity)
-
-    # ======================================================
-    # API — RESPONSE TIMES
-    # ======================================================
-
-    @app.route("/api/monitor/<int:monitor_id>/response-times")
-    def response_times(monitor_id):
-
-        monitor, error = _require_monitor_access(monitor_id)
-        if error:
-            return error
-
-        days = request.args.get("days", 7, type=int)
-
-        logs = MonitorService.get_logs_by_days(monitor_id, days)
-
-        data = [{
-            "response_time": log.response_time,
-            "timestamp": log.checked_at.isoformat()
-        } for log in logs]
-
-        return jsonify(data)
-
-    # ======================================================
-    # API — UPTIME ANALYTICS
-    # ======================================================
-
-    @app.route("/api/monitor/<int:monitor_id>/uptime")
-    def uptime_analytics(monitor_id):
-
-        monitor, error = _require_monitor_access(monitor_id)
-        if error:
-            return error
-
-        days = request.args.get("days", 7, type=int)
-
-        uptime = MonitorService.calculate_uptime_range(
-            monitor_id,
-            days
-        )
-
-        return jsonify({
-            "monitor_id": monitor_id,
-            "days": days,
-            "uptime_percentage": uptime
-        })
-
-    # ======================================================
-    # API — MTBF
-    # ======================================================
-
-    @app.route("/api/monitor/<int:monitor_id>/mtbf")
-    def mtbf_api(monitor_id):
-
-        monitor, error = _require_monitor_access(monitor_id)
-        if error:
-            return error
-
-        mtbf = MonitorService.calculate_mtbf(monitor_id)
-
-        return jsonify({
-            "monitor_id": monitor_id,
-            "mtbf_hours": mtbf
-        })
 
     # ======================================================
     # HEALTH CHECK
@@ -331,8 +239,10 @@ def create_app():
     def health():
 
         return {
+
             "status": "OK",
             "timestamp": datetime.utcnow().isoformat()
+
         }, 200
 
     return app
@@ -342,7 +252,7 @@ def create_app():
 # INTERNAL HELPERS
 # ==========================================================
 
-def _ensure_default_superadmin():
+def ensure_default_superadmin():
 
     existing = db.session.execute(
         db.select(User).filter_by(role="superadmin")
@@ -351,10 +261,12 @@ def _ensure_default_superadmin():
     if not existing:
 
         admin = User(
+
             email="vishnu.srivastava@apvtechnologies.com",
             password=generate_password_hash("Admin@123"),
             role="superadmin",
             is_verified=True
+
         )
 
         db.session.add(admin)
@@ -363,7 +275,7 @@ def _ensure_default_superadmin():
         print("✅ Default Superadmin Created")
 
 
-def _start_background_scheduler(app):
+def start_background_scheduler(app):
 
     if app.config.get("SCHEDULER_STARTED"):
         return
@@ -382,18 +294,21 @@ def _start_background_scheduler(app):
 
 
 # ==========================================================
-# RUN SERVER
+# APP BOOT
 # ==========================================================
 
 app = create_app()
+
 
 if __name__ == "__main__":
 
     debug_mode = os.environ.get("FLASK_ENV") != "production"
 
     app.run(
-    host="0.0.0.0",
-    port=int(os.environ.get("PORT", 5004)),
-    debug=debug_mode,
-    use_reloader=False
-)
+
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5004)),
+        debug=debug_mode,
+        use_reloader=False
+
+    )

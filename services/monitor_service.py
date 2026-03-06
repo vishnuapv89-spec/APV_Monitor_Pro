@@ -1,3 +1,8 @@
+# ==========================================================
+# APV Monitor Pro
+# Enterprise Monitoring Engine
+# ==========================================================
+
 import requests
 import socket
 import ssl
@@ -6,6 +11,8 @@ import time
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 from sqlalchemy import func
+
+from flask import current_app
 
 from extensions import db
 from models.monitor import Monitor
@@ -22,27 +29,36 @@ from alerts.telegram_alerts import (
 
 
 class MonitorService:
-    """
-    APV Monitor Pro
-    Enterprise Monitoring Engine
-    """
 
     session = requests.Session()
 
     session.headers.update({
-        "User-Agent": "APV Monitor Pro"
+        "User-Agent": "APV Monitor Pro Monitoring Engine"
     })
 
-    TIMEOUT = 10
-    MAX_RETRIES = 3
-    RETRY_DELAY = 2
+    # ======================================================
+    # CONFIG HELPERS
+    # ======================================================
 
-    SLOW_THRESHOLD = 2.0
+    @staticmethod
+    def _timeout():
+        return current_app.config.get("MONITOR_TIMEOUT", 10)
 
+    @staticmethod
+    def _retries():
+        return current_app.config.get("MAX_MONITOR_RETRIES", 3)
 
-    # ==========================================================
-    # TELEGRAM ELIGIBILITY CHECK
-    # ==========================================================
+    @staticmethod
+    def _retry_delay():
+        return current_app.config.get("MONITOR_RETRY_DELAY", 2)
+
+    @staticmethod
+    def _slow_threshold():
+        return current_app.config.get("SLOW_RESPONSE_THRESHOLD", 2.0)
+
+    # ======================================================
+    # TELEGRAM CHAT
+    # ======================================================
 
     @staticmethod
     def _get_user_chat_id(monitor: Monitor):
@@ -52,35 +68,36 @@ class MonitorService:
         if not user:
             return None
 
-        if not user.telegram_connected:
+        if not getattr(user, "telegram_connected", False):
             return None
 
-        if not user.telegram_chat_id:
+        if not getattr(user, "telegram_chat_id", None):
             return None
 
-        if not user.telegram_alerts_enabled:
+        if not getattr(user, "telegram_alerts_enabled", False):
             return None
 
         return user.telegram_chat_id
 
-
-    # ==========================================================
+    # ======================================================
     # MAIN MONITOR CHECK
-    # ==========================================================
+    # ======================================================
 
     @staticmethod
     def check_url(monitor: Monitor):
 
         now = datetime.utcnow()
 
-        status = "DOWN"
-        response_time = None
-        root_cause = None
-        http_code = None
-
         previous_status = monitor.status
 
-        for attempt in range(MonitorService.MAX_RETRIES):
+        status = "DOWN"
+        response_time = None
+        http_code = None
+        root_cause = None
+
+        retries = MonitorService._retries()
+
+        for attempt in range(retries):
 
             try:
 
@@ -88,7 +105,7 @@ class MonitorService:
 
                 response = MonitorService.session.get(
                     monitor.url,
-                    timeout=MonitorService.TIMEOUT,
+                    timeout=MonitorService._timeout(),
                     allow_redirects=True
                 )
 
@@ -104,7 +121,7 @@ class MonitorService:
                 else:
                     status = "UP"
 
-                    if response_time > MonitorService.SLOW_THRESHOLD:
+                    if response_time > MonitorService._slow_threshold():
                         status = "SLOW"
                         root_cause = "High Response Time"
 
@@ -119,23 +136,12 @@ class MonitorService:
             except Exception as e:
                 root_cause = str(e)
 
-            if attempt < MonitorService.MAX_RETRIES - 1:
-                time.sleep(MonitorService.RETRY_DELAY)
+            if attempt < retries - 1:
+                time.sleep(MonitorService._retry_delay())
 
-        ssl_days = monitor.ssl_days_remaining
-
-        should_check_ssl = (
-            monitor.last_ssl_check is None
-            or (now - monitor.last_ssl_check) > timedelta(hours=12)
-        )
-
-        if should_check_ssl:
-
-            ssl_days = MonitorService.check_ssl(monitor.url)
-            monitor.last_ssl_check = now
+        ssl_days = MonitorService.check_ssl(monitor.url)
 
         if ssl_days is not None and ssl_days <= 0:
-
             status = "DOWN"
             root_cause = "SSL Certificate Expired"
 
@@ -144,14 +150,13 @@ class MonitorService:
             lifecycle_status="ONGOING"
         ).first()
 
-        if previous_status != status:
+        chat_id = MonitorService._get_user_chat_id(monitor)
 
-            chat_id = MonitorService._get_user_chat_id(monitor)
+        if previous_status != status:
 
             if status == "DOWN":
 
                 if not open_incident:
-
                     MonitorService.create_incident(
                         monitor.id,
                         status,
@@ -163,22 +168,14 @@ class MonitorService:
                 EmailAlerts.send_monitor_down(monitor, root_cause)
 
                 if chat_id:
-                    send_down_alert(
-                        chat_id,
-                        monitor.url,
-                        root_cause or "Service Down"
-                    )
+                    send_down_alert(chat_id, monitor.url, root_cause)
 
             elif status == "SLOW":
 
                 EmailAlerts.send_monitor_slow(monitor, response_time)
 
                 if chat_id:
-                    send_slow_alert(
-                        chat_id,
-                        monitor.url,
-                        response_time
-                    )
+                    send_slow_alert(chat_id, monitor.url, response_time)
 
             elif status == "UP":
 
@@ -188,10 +185,7 @@ class MonitorService:
                 EmailAlerts.send_monitor_recovered(monitor)
 
                 if chat_id:
-                    send_recovery_alert(
-                        chat_id,
-                        monitor.url
-                    )
+                    send_recovery_alert(chat_id, monitor.url)
 
         log = MonitorLog(
             monitor_id=monitor.id,
@@ -208,84 +202,11 @@ class MonitorService:
         monitor.last_checked = now
         monitor.ssl_days_remaining = ssl_days if ssl_days else 0
 
-        if ssl_days is not None:
-            MonitorService._handle_ssl_incidents(monitor, ssl_days)
-
         db.session.commit()
 
-
-    # ==========================================================
-    # SSL INCIDENT LOGIC
-    # ==========================================================
-
-    @staticmethod
-    def _handle_ssl_incidents(monitor: Monitor, ssl_days):
-
-        chat_id = MonitorService._get_user_chat_id(monitor)
-
-        if ssl_days <= 0:
-
-            existing = Incident.query.filter_by(
-                monitor_id=monitor.id,
-                status="SSL_EXPIRED",
-                lifecycle_status="ONGOING"
-            ).first()
-
-            if not existing:
-
-                MonitorService.create_incident(
-                    monitor.id,
-                    "SSL_EXPIRED",
-                    "SSL Certificate Expired",
-                    "SSL Certificate Expired"
-                )
-
-                EmailAlerts.send_ssl_expired(monitor)
-
-                if chat_id:
-                    send_ssl_alert(chat_id, monitor.url, "SSL EXPIRED")
-
-        elif ssl_days < 15:
-
-            existing = Incident.query.filter_by(
-                monitor_id=monitor.id,
-                status="SSL_EXPIRING",
-                lifecycle_status="ONGOING"
-            ).first()
-
-            if not existing:
-
-                MonitorService.create_incident(
-                    monitor.id,
-                    "SSL_EXPIRING",
-                    f"SSL expiring in {ssl_days} days",
-                    "SSL Expiring Soon"
-                )
-
-                EmailAlerts.send_ssl_expiring(monitor, ssl_days)
-
-                if chat_id:
-                    send_ssl_alert(
-                        chat_id,
-                        monitor.url,
-                        f"SSL expiring in {ssl_days} days"
-                    )
-
-        else:
-
-            open_ssl = Incident.query.filter(
-                Incident.monitor_id == monitor.id,
-                Incident.status.in_(["SSL_EXPIRING", "SSL_EXPIRED"]),
-                Incident.lifecycle_status == "ONGOING"
-            ).all()
-
-            for inc in open_ssl:
-                inc.resolve()
-
-
-    # ==========================================================
+    # ======================================================
     # SSL CHECK
-    # ==========================================================
+    # ======================================================
 
     @staticmethod
     def check_ssl(url):
@@ -294,9 +215,6 @@ class MonitorService:
 
             parsed = urlparse(url)
             hostname = parsed.hostname
-
-            if not hostname:
-                return None
 
             context = ssl.create_default_context()
 
@@ -320,10 +238,9 @@ class MonitorService:
         except Exception:
             return None
 
-
-    # ==========================================================
+    # ======================================================
     # INCIDENT CREATION
-    # ==========================================================
+    # ======================================================
 
     @staticmethod
     def create_incident(
@@ -346,16 +263,25 @@ class MonitorService:
 
         db.session.add(incident)
 
+    # ======================================================
+    # INCIDENT COUNT
+    # ======================================================
 
-    # ==========================================================
-    # UPTIME CALCULATION
-    # ==========================================================
+    @staticmethod
+    def get_total_incidents(monitor_id):
+
+        return Incident.query.filter_by(
+            monitor_id=monitor_id
+        ).count()
+
+    # ======================================================
+    # UPTIME
+    # ======================================================
 
     @staticmethod
     def calculate_uptime_range(monitor_id, days):
 
-        now = datetime.utcnow()
-        start_date = now - timedelta(days=days)
+        start_date = datetime.utcnow() - timedelta(days=days)
 
         total_checks = MonitorLog.query.filter(
             MonitorLog.monitor_id == monitor_id,
@@ -371,24 +297,21 @@ class MonitorService:
             MonitorLog.checked_at >= start_date
         ).count()
 
-        uptime_percentage = ((total_checks - down_checks) / total_checks) * 100
+        uptime = ((total_checks - down_checks) / total_checks) * 100
 
-        return round(uptime_percentage, 3)
-
+        return round(uptime, 3)
 
     @staticmethod
     def calculate_uptime_24h(monitor_id):
         return MonitorService.calculate_uptime_range(monitor_id, 1)
 
-
     @staticmethod
     def calculate_uptime_30d(monitor_id):
         return MonitorService.calculate_uptime_range(monitor_id, 30)
 
-
-    # ==========================================================
+    # ======================================================
     # RESPONSE TIME STATS
-    # ==========================================================
+    # ======================================================
 
     @staticmethod
     def get_response_time_stats(monitor_id, days=7):
@@ -411,10 +334,9 @@ class MonitorService:
             "avg": round(stats[2], 3) if stats and stats[2] else 0
         }
 
-
-    # ==========================================================
+    # ======================================================
     # MTBF
-    # ==========================================================
+    # ======================================================
 
     @staticmethod
     def calculate_mtbf(monitor_id):
@@ -450,76 +372,3 @@ class MonitorService:
         avg_hours = avg_seconds / 3600
 
         return round(avg_hours, 2)
-
-
-    # ==========================================================
-    # LOG HELPERS
-    # ==========================================================
-
-    @staticmethod
-    def get_logs_last_24h(monitor_id):
-
-        start_date = datetime.utcnow() - timedelta(hours=24)
-
-        return MonitorLog.query.filter(
-            MonitorLog.monitor_id == monitor_id,
-            MonitorLog.checked_at >= start_date
-        ).order_by(
-            MonitorLog.checked_at.asc()
-        ).all()
-
-
-    @staticmethod
-    def get_logs_by_days(monitor_id, days):
-
-        start_date = datetime.utcnow() - timedelta(days=days)
-
-        return MonitorLog.query.filter(
-            MonitorLog.monitor_id == monitor_id,
-            MonitorLog.checked_at >= start_date
-        ).order_by(
-            MonitorLog.checked_at.asc()
-        ).all()
-
-
-    @staticmethod
-    def get_total_incidents(monitor_id):
-
-        return Incident.query.filter_by(
-            monitor_id=monitor_id
-        ).count()
-
-
-    # ==========================================================
-    # LIVE STATUS TIMELINE (LAST 24 HOURS)
-    # ==========================================================
-
-    @staticmethod
-    def get_status_timeline(monitor_id):
-
-        start_time = datetime.utcnow() - timedelta(hours=24)
-
-        logs = MonitorLog.query.filter(
-            MonitorLog.monitor_id == monitor_id,
-            MonitorLog.checked_at >= start_time
-        ).order_by(
-            MonitorLog.checked_at.asc()
-        ).all()
-
-        timeline = []
-
-        for log in logs:
-
-            status = log.status
-
-            if status == "UP" and log.response_time:
-                if log.response_time > MonitorService.SLOW_THRESHOLD:
-                    status = "SLOW"
-
-            timeline.append({
-                "status": status,
-                "response_time": log.response_time,
-                "timestamp": log.checked_at.isoformat()
-            })
-
-        return timeline

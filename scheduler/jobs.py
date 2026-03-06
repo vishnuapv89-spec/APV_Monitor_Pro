@@ -1,6 +1,12 @@
+# ==========================================================
+# APV Monitor Pro
+# Scheduler Jobs
+# ==========================================================
+
 from apscheduler.schedulers.background import BackgroundScheduler
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
+
+from flask import current_app
 
 from extensions import db
 from models.monitor import Monitor
@@ -8,13 +14,10 @@ from services.monitor_service import MonitorService
 
 
 # ==========================================================
-# GLOBAL SCHEDULER + WORKER POOL
+# GLOBAL SCHEDULER INSTANCE
 # ==========================================================
 
 scheduler = BackgroundScheduler()
-
-# Worker pool for parallel monitor execution
-executor = ThreadPoolExecutor(max_workers=10)
 
 
 # ==========================================================
@@ -24,7 +27,9 @@ executor = ThreadPoolExecutor(max_workers=10)
 def run_monitor_checks(app):
     """
     Main monitoring loop executed by APScheduler.
-    Determines which monitors need checking.
+
+    Runs monitors sequentially to avoid database locking
+    and excessive concurrency.
     """
 
     with app.app_context():
@@ -38,8 +43,6 @@ def run_monitor_checks(app):
 
             now = datetime.utcnow()
 
-            futures = []
-
             for monitor in monitors:
 
                 try:
@@ -51,7 +54,14 @@ def run_monitor_checks(app):
                     if getattr(monitor, "is_paused", False):
                         continue
 
-                    interval = getattr(monitor, "check_interval", 60)
+                    interval = getattr(
+                        monitor,
+                        "check_interval",
+                        current_app.config.get(
+                            "DEFAULT_CHECK_INTERVAL",
+                            60
+                        )
+                    )
 
                     last_checked = getattr(
                         monitor,
@@ -60,6 +70,10 @@ def run_monitor_checks(app):
                     )
 
                     should_run = False
+
+                    # ------------------------------------------
+                    # First run (never checked)
+                    # ------------------------------------------
 
                     if not last_checked:
 
@@ -72,60 +86,38 @@ def run_monitor_checks(app):
                         )
 
                         if now >= next_check:
+
                             should_run = True
 
                     if not should_run:
                         continue
 
                     # ------------------------------------------
-                    # Submit monitor job to worker pool
+                    # Execute monitor safely
                     # ------------------------------------------
 
-                    futures.append(
-                        executor.submit(
-                            run_single_monitor,
-                            app,
-                            monitor.id
-                        )
-                    )
+                    run_single_monitor(app, monitor.id)
 
                 except Exception as monitor_error:
 
                     print(
                         f"[{datetime.utcnow()}] "
                         f"[MONITOR LOOP ERROR] "
-                        f"(ID={monitor.id}) "
+                        f"(monitor_id={monitor.id}) "
                         f"{str(monitor_error)}"
                     )
 
-            # ------------------------------------------
-            # Wait for worker completion
-            # ------------------------------------------
-
-            for future in futures:
-
-                try:
-                    future.result()
-
-                except Exception as worker_error:
-
-                    print(
-                        f"[{datetime.utcnow()}] "
-                        f"[MONITOR WORKER ERROR] "
-                        f"{str(worker_error)}"
-                    )
-
-        except Exception as e:
+        except Exception as scheduler_error:
 
             print(
                 f"[{datetime.utcnow()}] "
                 f"[SCHEDULER LOOP ERROR] "
-                f"{str(e)}"
+                f"{str(scheduler_error)}"
             )
 
         finally:
 
-            # Cleanup SQLAlchemy session after scheduler cycle
+            # Ensure DB session cleanup
             db.session.remove()
 
 
@@ -135,7 +127,8 @@ def run_monitor_checks(app):
 
 def run_single_monitor(app, monitor_id):
     """
-    Executes one monitor check safely inside Flask context.
+    Executes a single monitor check safely.
+    Isolated execution prevents full loop failure.
     """
 
     with app.app_context():
@@ -147,34 +140,33 @@ def run_single_monitor(app, monitor_id):
             if not monitor:
                 return
 
-            # -------------------------------------------------
-            # Execute monitoring engine
-            # -------------------------------------------------
+            # ------------------------------------------
+            # Run monitoring engine
+            # ------------------------------------------
 
             MonitorService.check_url(monitor)
 
-            # -------------------------------------------------
+            # ------------------------------------------
             # Update last check timestamp
-            # -------------------------------------------------
+            # ------------------------------------------
 
             monitor.last_checked_at = datetime.utcnow()
 
             db.session.commit()
 
-        except Exception as e:
+        except Exception as execution_error:
 
             db.session.rollback()
 
             print(
                 f"[{datetime.utcnow()}] "
                 f"[MONITOR EXECUTION FAILED] "
-                f"(ID={monitor_id}) "
-                f"{str(e)}"
+                f"(monitor_id={monitor_id}) "
+                f"{str(execution_error)}"
             )
 
         finally:
 
-            # Prevent session leakage in worker threads
             db.session.remove()
 
 
@@ -184,15 +176,22 @@ def run_single_monitor(app, monitor_id):
 
 def start_scheduler(app):
     """
-    Initializes monitoring scheduler safely.
-    Prevents duplicate scheduler jobs.
+    Starts the monitoring scheduler safely.
+
+    Prevents duplicate job registration and ensures
+    a single scheduler instance runs in the application.
     """
 
     try:
 
-        job_id = "monitor_job"
+        job_id = "apv_monitor_scheduler"
 
         existing_job = scheduler.get_job(job_id)
+
+        interval = app.config.get(
+            "SCHEDULER_INTERVAL_SECONDS",
+            30
+        )
 
         if not existing_job:
 
@@ -200,7 +199,7 @@ def start_scheduler(app):
                 id=job_id,
                 func=run_monitor_checks,
                 trigger="interval",
-                seconds=30,
+                seconds=interval,
                 args=[app],
                 replace_existing=True,
                 max_instances=1,
@@ -212,8 +211,8 @@ def start_scheduler(app):
             scheduler.start()
 
             print(
-                "🚀 APV Monitor Pro Scheduler Started "
-                "(interval: 30 seconds)"
+                f"🚀 APV Monitor Pro Scheduler Started "
+                f"(interval: {interval} seconds)"
             )
 
     except Exception as e:
