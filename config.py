@@ -80,17 +80,13 @@ class Config:
     MAIL_USE_TLS = True
     MAIL_USE_SSL = False
 
-    MAIL_USERNAME = os.getenv(
-        "MAIL_USERNAME"
-    )
+    MAIL_USERNAME = os.getenv("MAIL_USERNAME")
 
-    MAIL_PASSWORD = os.getenv(
-        "MAIL_PASSWORD"
-    )
+    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
 
     MAIL_DEFAULT_SENDER = os.getenv(
         "MAIL_DEFAULT_SENDER",
-        "APV Monitor Pro <vishnu.srivastava@apvtechnologies.com>"
+        "APV Monitor Pro"
     )
 
     # Prevent crash if SMTP unavailable
@@ -106,15 +102,9 @@ class Config:
     # TELEGRAM ALERT SYSTEM
     # --------------------------------------------------
 
-    TELEGRAM_BOT_TOKEN = os.getenv(
-        "TELEGRAM_BOT_TOKEN",
-        "7995905567:AAFEayHbuUUkVbnwDfbOxZTopHwgv5buxGs"
-    )
+    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
-    TELEGRAM_CHAT_ID = os.getenv(
-        "TELEGRAM_CHAT_ID",
-        "6794289927"
-    )
+    TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
     TELEGRAM_API_URL = "https://api.telegram.org"
 
