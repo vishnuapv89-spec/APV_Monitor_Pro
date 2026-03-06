@@ -16,6 +16,7 @@ load_dotenv()
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 INSTANCE_PATH = os.path.join(BASE_DIR, "instance")
 
+# Ensure instance directory exists
 os.makedirs(INSTANCE_PATH, exist_ok=True)
 
 
@@ -80,13 +81,11 @@ class Config:
     MAIL_USE_SSL = False
 
     MAIL_USERNAME = os.getenv(
-        "MAIL_USERNAME",
-        "vishnu.srivastava@apvtechnologies.com"
+        "MAIL_USERNAME"
     )
 
     MAIL_PASSWORD = os.getenv(
-        "MAIL_PASSWORD",
-        "hrxwppglzwgzwknd"
+        "MAIL_PASSWORD"
     )
 
     MAIL_DEFAULT_SENDER = os.getenv(
