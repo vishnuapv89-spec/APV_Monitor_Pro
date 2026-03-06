@@ -16,18 +16,17 @@ load_dotenv()
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 INSTANCE_PATH = os.path.join(BASE_DIR, "instance")
 
-# Ensure instance directory exists
 os.makedirs(INSTANCE_PATH, exist_ok=True)
 
 
 # ======================================================
-# BASE CONFIG
+# CONFIG CLASS
 # ======================================================
 
 class Config:
     """
     APV Monitor Pro
-    Global Configuration
+    Production + Demo Configuration
     """
 
     # --------------------------------------------------
@@ -38,49 +37,71 @@ class Config:
 
     SECRET_KEY = os.getenv(
         "SECRET_KEY",
-        "dev_secret_key"
+        "apv_monitor_dev_secret"
     )
 
     # --------------------------------------------------
     # DATABASE
     # --------------------------------------------------
 
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL",
-        f"sqlite:///{os.path.join(INSTANCE_PATH, 'apv_monitor.db')}"
-    )
+    DATABASE_URL = os.getenv("DATABASE_URL")
+
+    if DATABASE_URL:
+        SQLALCHEMY_DATABASE_URI = DATABASE_URL
+    else:
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(INSTANCE_PATH, 'apv_monitor.db')}"
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # SQLite safe settings for background scheduler
+    # SQLite concurrency protection
     SQLALCHEMY_ENGINE_OPTIONS = {
         "connect_args": {
             "check_same_thread": False
         },
-        "pool_pre_ping": True
+        "pool_pre_ping": True,
+        "pool_recycle": 300
     }
 
     # --------------------------------------------------
-    # MAIL CONFIGURATION (Office365 SMTP)
+    # MAIL CONFIGURATION
     # --------------------------------------------------
 
-    MAIL_SERVER = "smtp.office365.com"
+    MAIL_SERVER = os.getenv(
+        "MAIL_SERVER",
+        "smtp.office365.com"
+    )
 
-    MAIL_PORT = 587
+    MAIL_PORT = int(os.getenv(
+        "MAIL_PORT",
+        587
+    ))
 
     MAIL_USE_TLS = True
-
     MAIL_USE_SSL = False
 
-    MAIL_USERNAME = "vishnu.srivastava@apvtechnologies.com"
+    MAIL_USERNAME = os.getenv(
+        "MAIL_USERNAME",
+        "vishnu.srivastava@apvtechnologies.com"
+    )
 
-    MAIL_PASSWORD = "hrxwppglzwgzwknd"
+    MAIL_PASSWORD = os.getenv(
+        "MAIL_PASSWORD",
+        "hrxwppglzwgzwknd"
+    )
 
-    MAIL_DEFAULT_SENDER = "APV Monitor Pro <vishnu.srivastava@apvtechnologies.com>"
+    MAIL_DEFAULT_SENDER = os.getenv(
+        "MAIL_DEFAULT_SENDER",
+        "APV Monitor Pro <vishnu.srivastava@apvtechnologies.com>"
+    )
+
+    # Prevent crash if SMTP unavailable
+    MAIL_SUPPRESS_SEND = os.getenv(
+        "MAIL_SUPPRESS_SEND",
+        "False"
+    ) == "True"
 
     MAIL_MAX_EMAILS = None
 
-    MAIL_SUPPRESS_SEND = False
 
     # --------------------------------------------------
     # TELEGRAM ALERT SYSTEM
@@ -108,8 +129,9 @@ class Config:
         3
     ))
 
+
     # --------------------------------------------------
-    # MONITORING ENGINE SETTINGS
+    # MONITORING ENGINE
     # --------------------------------------------------
 
     MONITOR_TIMEOUT = int(os.getenv(
@@ -132,33 +154,31 @@ class Config:
         2
     ))
 
-    # Slow response detection (seconds)
     SLOW_RESPONSE_THRESHOLD = float(os.getenv(
         "SLOW_RESPONSE_THRESHOLD",
         2.0
     ))
 
+
     # --------------------------------------------------
     # ALERT THRESHOLDS
     # --------------------------------------------------
 
-    # Failures required before DOWN alert
     FAILURE_THRESHOLD = int(os.getenv(
         "FAILURE_THRESHOLD",
         3
     ))
 
-    # Success checks required before RECOVERY alert
     RECOVERY_THRESHOLD = int(os.getenv(
         "RECOVERY_THRESHOLD",
         2
     ))
 
-    # SSL warning threshold
     SSL_EXPIRING_DAYS = int(os.getenv(
         "SSL_EXPIRING_DAYS",
         15
     ))
+
 
     # --------------------------------------------------
     # SSL MONITORING
@@ -169,6 +189,7 @@ class Config:
         12
     ))
 
+
     # --------------------------------------------------
     # SCHEDULER SETTINGS
     # --------------------------------------------------
@@ -178,11 +199,12 @@ class Config:
         30
     ))
 
-    # IMPORTANT: SQLite safe thread limit
+    # IMPORTANT for SQLite locking
     MAX_WORKER_THREADS = int(os.getenv(
         "MAX_WORKER_THREADS",
         1
     ))
+
 
     # --------------------------------------------------
     # HTTP REQUEST SETTINGS
@@ -195,16 +217,17 @@ class Config:
 
     FOLLOW_REDIRECTS = True
 
+
     # --------------------------------------------------
-    # DEBUG / ENVIRONMENT
+    # ENVIRONMENT
     # --------------------------------------------------
 
     DEBUG = os.getenv(
         "DEBUG",
-        "True"
+        "False"
     ) == "True"
 
     ENV = os.getenv(
         "FLASK_ENV",
-        "development"
+        "production"
     )
