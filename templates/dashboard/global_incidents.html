@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+
+<meta charset="UTF-8">
+<title>Global Incidents - APV Monitor Pro</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+
+:root{
+--green:#00ffb3;
+--blue:#3b82f6;
+--red:#ff4d4d;
+--orange:#f59e0b;
+}
+
+body{
+margin:0;
+font-family:'Inter',sans-serif;
+background:
+radial-gradient(circle at 15% 20%, rgba(0,255,179,.06), transparent 40%),
+radial-gradient(circle at 85% 80%, rgba(59,130,246,.06), transparent 40%),
+#020617;
+color:white;
+}
+
+/* ================= NAVBAR ================= */
+
+.navbar{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:20px 50px;
+background:rgba(255,255,255,0.04);
+backdrop-filter:blur(25px);
+border-bottom:1px solid rgba(255,255,255,0.08);
+}
+
+.logo{
+display:flex;
+align-items:center;
+gap:14px;
+}
+
+.logo-box{
+width:46px;
+height:46px;
+border-radius:16px;
+background:linear-gradient(135deg,var(--green),var(--blue));
+display:flex;
+align-items:center;
+justify-content:center;
+font-weight:800;
+}
+
+.back-btn{
+padding:10px 18px;
+border-radius:12px;
+border:none;
+background:linear-gradient(135deg,var(--blue),var(--green));
+color:white;
+font-weight:600;
+cursor:pointer;
+}
+
+/* ================= CONTAINER ================= */
+
+.container{
+padding:50px;
+}
+
+/* ================= HEADER ================= */
+
+.header{
+margin-bottom:40px;
+}
+
+.header h1{
+margin:0;
+font-size:28px;
+font-weight:800;
+}
+
+/* ================= FILTER BAR ================= */
+
+.filter-bar{
+display:flex;
+gap:20px;
+margin-bottom:30px;
+flex-wrap:wrap;
+}
+
+.filter-bar input,
+.filter-bar select{
+padding:14px 18px;
+border-radius:14px;
+border:none;
+background:rgba(255,255,255,0.08);
+color:white;
+font-size:14px;
+}
+
+.filter-bar input::placeholder{
+color:rgba(255,255,255,.5);
+}
+
+/* ================= TABLE ================= */
+
+.table-box{
+overflow-x:auto;
+border-radius:26px;
+background:rgba(255,255,255,0.04);
+backdrop-filter:blur(25px);
+border:1px solid rgba(255,255,255,0.08);
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+}
+
+th{
+padding:20px;
+text-align:center;
+font-size:12px;
+text-transform:uppercase;
+letter-spacing:.8px;
+opacity:.7;
+background:#020617;
+}
+
+td{
+padding:18px;
+text-align:center;
+font-size:14px;
+}
+
+tr{
+border-bottom:1px solid rgba(255,255,255,0.05);
+}
+
+tr:hover{
+background:rgba(255,255,255,0.04);
+}
+
+/* ================= STATUS BADGES ================= */
+
+.badge{
+padding:6px 14px;
+border-radius:20px;
+font-size:12px;
+font-weight:700;
+}
+
+.badge-down{
+background:rgba(255,77,77,0.15);
+color:var(--red);
+}
+
+.badge-slow{
+background:rgba(245,158,11,0.15);
+color:var(--orange);
+}
+
+.badge-resolved{
+background:rgba(0,255,179,0.15);
+color:var(--green);
+}
+
+/* ================= URL LINK ================= */
+
+.url-link{
+color:var(--blue);
+font-weight:700;
+text-decoration:none;
+}
+
+.url-link:hover{
+text-decoration:underline;
+}
+
+/* ================= EMPTY STATE ================= */
+
+.empty{
+padding:40px;
+text-align:center;
+opacity:.6;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="navbar">
+
+<div class="logo">
+<div class="logo-box">APV</div>
+<div style="font-weight:700;">APV Monitor Pro</div>
+</div>
+
+<a href="/dashboard">
+<button class="back-btn">← Back to Dashboard</button>
+</a>
+
+</div>
+
+<div class="container">
+
+<div class="header">
+<h1>Global Incidents</h1>
+</div>
+
+<!-- ================= FILTERS ================= -->
+
+<div class="filter-bar">
+
+<input type="text" id="searchInput" placeholder="Search by URL or Root Cause">
+
+<select id="statusFilter">
+<option value="ALL">All Status</option>
+<option value="ONGOING">Ongoing</option>
+<option value="RESOLVED">Resolved</option>
+</select>
+
+</div>
+
+<!-- ================= TABLE ================= -->
+
+<div class="table-box">
+
+<table id="incidentTable">
+
+<tr>
+<th>#</th>
+<th>Monitor</th>
+<th>Status</th>
+<th>Type</th>
+<th>Root Cause</th>
+<th>Started</th>
+<th>Resolved</th>
+<th>Duration</th>
+</tr>
+
+{% if incidents %}
+
+{% for incident in incidents %}
+
+<tr>
+
+<td>{{ loop.index }}</td>
+
+<td>
+<a href="/monitor/{{ incident.monitor.id }}/overview" class="url-link">
+{{ incident.monitor.url }}
+</a>
+</td>
+
+<td>
+
+{% if incident.lifecycle_status == "ONGOING" %} <span class="badge badge-down">ONGOING</span>
+{% else %} <span class="badge badge-resolved">RESOLVED</span>
+{% endif %}
+
+</td>
+
+<td>
+
+{% if incident.status == "SLOW" %} <span class="badge badge-slow">SLOW</span>
+{% else %} <span class="badge badge-down">{{ incident.status }}</span>
+{% endif %}
+
+</td>
+
+<td>{{ incident.root_cause or "-" }}</td>
+
+<td>
+{{ incident.started_at.strftime("%d %b %Y %H:%M:%S") }}
+</td>
+
+<td>
+
+{% if incident.resolved_at %}
+{{ incident.resolved_at.strftime("%d %b %Y %H:%M:%S") }}
+{% else %}
+----------
+
+{% endif %}
+
+</td>
+
+<td>
+
+{% if incident.resolved_at %}
+{{ ((incident.resolved_at - incident.started_at).total_seconds() // 60)|int }} mins
+{% else %}
+Ongoing
+{% endif %}
+
+</td>
+
+</tr>
+
+{% endfor %}
+
+{% else %}
+
+<tr>
+<td colspan="8" class="empty">
+No incidents recorded yet
+</td>
+</tr>
+
+{% endif %}
+
+</table>
+
+</div>
+
+</div>
+
+<script>
+
+const searchInput = document.getElementById("searchInput");
+const statusFilter = document.getElementById("statusFilter");
+const table = document.getElementById("incidentTable");
+
+function filterTable(){
+
+const search = searchInput.value.toLowerCase();
+const status = statusFilter.value;
+
+for(let i=1;i<table.rows.length;i++){
+
+let row = table.rows[i];
+
+let text = row.innerText.toLowerCase();
+let lifecycle = row.cells[2].innerText.trim();
+
+let show = true;
+
+if(!text.includes(search)) show = false;
+
+if(status !== "ALL" && lifecycle !== status) show = false;
+
+row.style.display = show ? "" : "none";
+
+}
+
+}
+
+searchInput.addEventListener("keyup",filterTable);
+statusFilter.addEventListener("change",filterTable);
+
+</script>
+
+</body>
+</html>

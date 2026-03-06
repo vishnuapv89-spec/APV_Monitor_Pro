@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Sign Up - APV Monitor Pro</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+
+:root{
+--green:#00ffb3;
+--blue:#3b82f6;
+--red:#ff4d4d;
+}
+
+body{
+margin:0;
+font-family:'Inter',sans-serif;
+background:
+radial-gradient(circle at 20% 20%, rgba(0,255,179,.05), transparent 40%),
+radial-gradient(circle at 80% 80%, rgba(59,130,246,.05), transparent 40%),
+#020617;
+color:white;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+}
+
+/* CARD */
+
+.card{
+width:420px;
+padding:45px;
+border-radius:24px;
+background:rgba(255,255,255,0.05);
+backdrop-filter:blur(30px);
+border:1px solid rgba(255,255,255,0.08);
+box-shadow:0 0 60px rgba(0,255,179,.05);
+}
+
+/* LOGO */
+
+.logo{
+text-align:center;
+font-weight:800;
+font-size:20px;
+margin-bottom:25px;
+}
+
+/* TITLE */
+
+h2{
+margin:0 0 25px 0;
+font-size:22px;
+text-align:center;
+}
+
+/* INPUTS */
+
+input{
+width:100%;
+padding:15px;
+margin-bottom:15px;
+border-radius:14px;
+border:none;
+background:rgba(255,255,255,0.08);
+color:white;
+font-size:14px;
+}
+
+input:focus{
+outline:none;
+border:1px solid var(--blue);
+}
+
+/* BUTTON */
+
+button{
+width:100%;
+padding:15px;
+border:none;
+border-radius:14px;
+font-weight:700;
+font-size:14px;
+background:linear-gradient(135deg,var(--green),var(--blue));
+cursor:pointer;
+transition:.2s;
+}
+
+button:hover{
+transform:translateY(-2px);
+}
+
+/* ERROR */
+
+.error{
+background:rgba(255,77,77,0.15);
+border:1px solid var(--red);
+padding:12px;
+border-radius:12px;
+margin-bottom:15px;
+font-size:13px;
+}
+
+/* INFO */
+
+.info{
+background:rgba(0,255,179,0.12);
+border:1px solid var(--green);
+padding:12px;
+border-radius:12px;
+margin-bottom:15px;
+font-size:13px;
+}
+
+/* FOOTER */
+
+.footer{
+margin-top:20px;
+text-align:center;
+font-size:13px;
+}
+
+.footer a{
+color:var(--blue);
+text-decoration:none;
+font-weight:600;
+}
+
+.footer a:hover{
+text-decoration:underline;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+<div class="logo">
+APV Monitor Pro
+</div>
+
+<h2>Create Your Account</h2>
+
+{% if error %}
+
+<div class="error">
+{{ error }}
+</div>
+{% endif %}
+
+<div class="info">
+After signup, a confirmation email will be sent to verify your account.
+</div>
+
+<form method="POST">
+
+<input
+type="email"
+name="email"
+placeholder="Official Email (@apvtechnologies.com)"
+required>
+
+<input
+type="password"
+name="password"
+placeholder="Password (min 8 characters)"
+required>
+
+<input
+type="password"
+name="confirm_password"
+placeholder="Confirm Password"
+required>
+
+<button type="submit">
+Create Account
+</button>
+
+</form>
+
+<div class="footer">
+Already have an account?
+<a href="{{ url_for('auth.login') }}">Login</a>
+</div>
+
+</div>
+
+</body>
+</html>

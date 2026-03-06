@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Edit Monitor - APV Monitor Pro</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+
+body{
+margin:0;
+font-family:'Inter',sans-serif;
+background:#020617;
+color:white;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+}
+
+.container{
+width:500px;
+background:rgba(255,255,255,0.05);
+padding:40px;
+border-radius:20px;
+}
+
+h2{
+margin-top:0;
+}
+
+input{
+width:100%;
+padding:14px;
+margin-top:10px;
+border-radius:10px;
+border:none;
+background:rgba(255,255,255,0.08);
+color:white;
+}
+
+button{
+margin-top:20px;
+padding:12px 20px;
+border:none;
+border-radius:10px;
+font-weight:700;
+cursor:pointer;
+}
+
+.save{
+background:#00ffb3;
+color:black;
+}
+
+.cancel{
+background:#ff4d4d;
+color:white;
+margin-left:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Edit Monitor</h2>
+
+<form method="POST">
+
+<label>Monitor URL</label>
+
+<input
+type="text"
+name="url"
+value="{{ monitor.url }}"
+required
+>
+
+<div>
+
+<button class="save" type="submit">
+Save Changes
+</button>
+
+<a href="/dashboard">
+<button type="button" class="cancel">
+Cancel
+</button>
+</a>
+
+</div>
+
+</form>
+
+</div>
+
+</body>
+</html>

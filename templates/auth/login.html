@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Login - APV Monitor Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root{
+            --green:#00ffb3;
+            --blue:#3b82f6;
+            --red:#ff4d4d;
+            --text-soft:rgba(255,255,255,.65);
+        }
+
+        *{
+            box-sizing:border-box;
+        }
+
+        body{
+            margin:0;
+            font-family:'Inter',sans-serif;
+            background:
+                radial-gradient(circle at 15% 20%, rgba(0,255,179,.05), transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(59,130,246,.05), transparent 40%),
+                #020617;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            color:white;
+        }
+
+        .card{
+            width:440px;
+            padding:50px;
+            border-radius:28px;
+            background:rgba(255,255,255,0.05);
+            backdrop-filter:blur(28px);
+            border:1px solid rgba(255,255,255,0.08);
+            text-align:center;
+            box-shadow:0 30px 80px rgba(0,0,0,0.65);
+            transition:.3s ease;
+        }
+
+        .card:hover{
+            transform:translateY(-6px);
+            box-shadow:0 40px 100px rgba(0,255,179,.05);
+        }
+
+        .logo{
+            width:80px;
+            height:80px;
+            margin:auto;
+            border-radius:24px;
+            background:linear-gradient(135deg,var(--green),var(--blue));
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:32px;
+            font-weight:800;
+            margin-bottom:25px;
+            box-shadow:0 0 40px rgba(0,255,179,.6);
+        }
+
+        h2{
+            margin:0;
+            font-size:22px;
+            font-weight:700;
+        }
+
+        p{
+            opacity:.6;
+            font-size:14px;
+            margin:8px 0 30px 0;
+        }
+
+        input{
+            width:100%;
+            padding:14px;
+            margin:12px 0;
+            border-radius:16px;
+            border:none;
+            background:rgba(255,255,255,0.08);
+            color:white;
+            font-size:14px;
+            transition:.2s;
+        }
+
+        input:focus{
+            outline:none;
+            box-shadow:0 0 18px rgba(0,255,179,.4);
+            border:1px solid var(--blue);
+        }
+
+        .options{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            font-size:13px;
+            margin-top:6px;
+            opacity:.75;
+        }
+
+        .options a{
+            color:var(--green);
+            text-decoration:none;
+            font-weight:600;
+        }
+
+        .options a:hover{
+            text-decoration:underline;
+        }
+
+        button{
+            width:100%;
+            padding:15px;
+            border:none;
+            border-radius:18px;
+            font-weight:700;
+            cursor:pointer;
+            margin-top:24px;
+            background:linear-gradient(135deg,var(--green),var(--blue));
+            color:#020617;
+            font-size:15px;
+            transition:.25s ease;
+        }
+
+        button:hover{
+            transform:scale(1.02);
+            box-shadow:0 0 30px rgba(0,255,179,.6);
+        }
+
+        .register{
+            margin-top:22px;
+            font-size:14px;
+            color:var(--text-soft);
+        }
+
+        .register a{
+            color:var(--green);
+            text-decoration:none;
+            font-weight:600;
+            margin-left:6px;
+        }
+
+        .register a:hover{
+            text-decoration:underline;
+        }
+
+        .footer{
+            margin-top:30px;
+            font-size:12px;
+            opacity:.45;
+        }
+
+        .error{
+            background:rgba(255,77,77,.15);
+            color:var(--red);
+            padding:12px;
+            border-radius:14px;
+            margin-bottom:18px;
+            font-size:13px;
+            animation:shake .3s ease;
+        }
+
+        @keyframes shake{
+            0%{transform:translateX(0)}
+            25%{transform:translateX(-5px)}
+            50%{transform:translateX(5px)}
+            75%{transform:translateX(-5px)}
+            100%{transform:translateX(0)}
+        }
+    </style>
+</head>
+
+<body>
+
+<form method="post" action="{{ url_for('auth.login') }}" class="card">
+
+    <div class="logo">APV</div>
+
+    <h2>APV Monitor Pro</h2>
+    <p>Enterprise Network Intelligence</p>
+
+    {% if error %}
+        <div class="error">{{ error }}</div>
+    {% endif %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="error">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <input type="email" name="email" placeholder="Official Email" required>
+    <input type="password" name="password" placeholder="Password" required>
+
+    <div class="options">
+        <label>
+            <input type="checkbox" style="width:auto; margin-right:6px;"> Remember me
+        </label>
+        <a href="#">Forgot password?</a>
+    </div>
+
+    <button type="submit">Login</button>
+
+    <div class="register">
+        Don't have an account?
+        <a href="{{ url_for('auth.signup') }}">Create Account</a>
+    </div>
+
+    <div class="footer">
+        © 2026 APV Technologies
+    </div>
+
+</form>
+
+</body>
+</html>

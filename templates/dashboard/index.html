@@ -1,0 +1,640 @@
+{% extends "layout.html" %}
+{% block title %}Dashboard - APV Monitor Pro{% endblock %}
+{% block content %}
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="refresh" content="30">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+
+/* =====================================================
+ROOT COLORS
+===================================================== */
+
+:root{
+--green:#00ffb3;
+--blue:#3b82f6;
+--red:#ff4d4d;
+--orange:#f59e0b;
+--bg:#020617;
+}
+
+/* =====================================================
+GLOBAL
+===================================================== */
+
+body{
+margin:0;
+font-family:'Inter',sans-serif;
+background:
+radial-gradient(circle at 15% 20%, rgba(0,255,179,.06), transparent 40%),
+radial-gradient(circle at 85% 80%, rgba(59,130,246,.06), transparent 40%),
+var(--bg);
+color:white;
+}
+
+/* =====================================================
+CONTAINER
+===================================================== */
+
+.container{
+width:100%;
+max-width:100%;
+margin:auto;
+padding:40px 3%;
+}
+
+/* =====================================================
+FLASH
+===================================================== */
+
+.flash{
+padding:14px 18px;
+border-radius:12px;
+margin-bottom:20px;
+font-weight:600;
+}
+
+.flash-success{
+background:rgba(0,255,179,.15);
+border:1px solid var(--green);
+color:var(--green);
+}
+
+.flash-error{
+background:rgba(255,77,77,.15);
+border:1px solid var(--red);
+color:var(--red);
+}
+
+/* =====================================================
+SUMMARY CARDS
+===================================================== */
+
+.summary{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+gap:24px;
+margin-bottom:30px;
+}
+
+.card{
+padding:26px;
+border-radius:20px;
+background:rgba(255,255,255,0.05);
+border:1px solid rgba(255,255,255,0.08);
+backdrop-filter:blur(20px);
+transition:.25s;
+}
+
+.card:hover{
+transform:translateY(-4px);
+box-shadow:0 0 30px rgba(0,255,179,.08);
+}
+
+.card h3{
+margin:0;
+font-size:12px;
+text-transform:uppercase;
+opacity:.6;
+}
+
+.card h2{
+margin-top:10px;
+font-size:28px;
+font-weight:800;
+}
+
+/* =====================================================
+INCIDENT DASHBOARD BUTTON
+===================================================== */
+
+.incident-dashboard{
+margin-bottom:30px;
+display:flex;
+gap:10px;
+}
+
+.incident-dashboard a{
+text-decoration:none;
+}
+
+.incident-btn{
+padding:12px 20px;
+border-radius:14px;
+border:none;
+font-weight:700;
+background:linear-gradient(135deg,var(--blue),var(--green));
+color:white;
+cursor:pointer;
+}
+
+/* =====================================================
+ADD MONITOR
+===================================================== */
+
+.add-box{
+display:flex;
+gap:12px;
+margin-bottom:25px;
+}
+
+.add-box input{
+flex:1;
+padding:14px;
+border-radius:14px;
+border:none;
+background:rgba(255,255,255,.08);
+color:white;
+font-size:14px;
+}
+
+.add-box button{
+padding:14px 22px;
+border:none;
+border-radius:14px;
+font-weight:700;
+background:linear-gradient(135deg,var(--green),var(--blue));
+cursor:pointer;
+}
+
+/* =====================================================
+FILTER BAR
+===================================================== */
+
+.filter-bar{
+display:flex;
+gap:14px;
+margin-bottom:20px;
+flex-wrap:wrap;
+}
+
+.filter-bar input,
+.filter-bar select{
+padding:12px 14px;
+border-radius:12px;
+border:none;
+background:rgba(255,255,255,.08);
+color:white;
+}
+
+/* =====================================================
+TABLE
+===================================================== */
+
+.table-box{
+width:100%;
+border-radius:20px;
+overflow:hidden;
+background:rgba(255,255,255,0.04);
+border:1px solid rgba(255,255,255,.08);
+backdrop-filter:blur(25px);
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+font-size:13px;
+}
+
+th{
+padding:16px;
+text-align:center;
+font-size:11px;
+text-transform:uppercase;
+opacity:.7;
+background:#020617;
+}
+
+td{
+padding:14px;
+text-align:center;
+}
+
+tr{
+border-bottom:1px solid rgba(255,255,255,.05);
+}
+
+tr:nth-child(even){
+background:rgba(255,255,255,.02);
+}
+
+tr:hover{
+background:rgba(0,255,179,.05);
+}
+
+/* =====================================================
+STATUS
+===================================================== */
+
+.status-pill{
+padding:6px 14px;
+border-radius:20px;
+font-size:11px;
+font-weight:700;
+}
+
+.up{
+background:rgba(0,255,179,.15);
+color:var(--green);
+}
+
+.down{
+background:rgba(255,77,77,.15);
+color:var(--red);
+}
+
+.slow{
+background:rgba(245,158,11,.15);
+color:var(--orange);
+}
+
+/* =====================================================
+UPTIME
+===================================================== */
+
+.uptime-good{color:var(--green);font-weight:700;}
+.uptime-mid{color:var(--orange);font-weight:700;}
+.uptime-bad{color:var(--red);font-weight:700;}
+
+.sla-bar{
+height:5px;
+background:rgba(255,255,255,.1);
+border-radius:8px;
+margin-top:5px;
+overflow:hidden;
+}
+
+.sla-fill{
+height:100%;
+background:linear-gradient(90deg,var(--green),var(--blue));
+}
+
+/* =====================================================
+LINK
+===================================================== */
+
+.url-link{
+color:var(--blue);
+font-weight:700;
+text-decoration:none;
+}
+
+.url-link:hover{
+text-decoration:underline;
+}
+
+/* =====================================================
+INCIDENT LINK
+===================================================== */
+
+.incident-link{
+display:inline-block;
+padding:5px 12px;
+border-radius:18px;
+background:rgba(59,130,246,.15);
+color:var(--blue);
+font-weight:700;
+text-decoration:none;
+}
+
+.incident-link.alert{
+background:rgba(255,77,77,.15);
+color:var(--red);
+}
+
+/* =====================================================
+BUTTONS
+===================================================== */
+
+td:last-child{
+min-width:360px;
+}
+
+.action-buttons{
+display:flex;
+gap:6px;
+justify-content:center;
+align-items:center;
+white-space:nowrap;
+}
+
+.btn{
+padding:5px 10px;
+font-size:11px;
+border:none;
+border-radius:8px;
+font-weight:700;
+cursor:pointer;
+}
+
+.btn-open{
+background:linear-gradient(135deg,var(--green),#00e0ff);
+color:black;
+}
+
+.btn-blue{
+background:linear-gradient(135deg,var(--blue),var(--green));
+color:white;
+}
+
+.btn-delete{
+background:rgba(255,77,77,.15);
+color:var(--red);
+}
+
+/* =====================================================
+RESPONSIVE
+===================================================== */
+
+@media(max-width:900px){
+
+td{
+font-size:12px;
+padding:10px;
+}
+
+th{
+font-size:10px;
+}
+
+}
+
+</style>
+
+<div class="container">
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for category,message in messages %}
+
+<div class="flash flash-{{category}}">
+{{message}}
+</div>
+
+{% endfor %}
+{% endif %}
+{% endwith %}
+
+{% set total = monitors|length %}
+{% set up = monitors|selectattr("data.status","equalto","UP")|list|length %}
+{% set down = monitors|selectattr("data.status","equalto","DOWN")|list|length %}
+{% set ssl_exp = monitors|selectattr("data.ssl_days_remaining","lt",15)|list|length %}
+
+<div class="summary">
+
+<div class="card">
+<h3>Total Monitors</h3>
+<h2>{{total}}</h2>
+</div>
+
+<div class="card">
+<h3>UP</h3>
+<h2 style="color:var(--green)">{{up}}</h2>
+</div>
+
+<div class="card">
+<h3>DOWN</h3>
+<h2 style="color:var(--red)">{{down}}</h2>
+</div>
+
+<div class="card">
+<h3>SSL Expiring</h3>
+<h2 style="color:var(--orange)">{{ssl_exp}}</h2>
+</div>
+
+</div>
+
+<div class="incident-dashboard">
+
+<a href="/incidents">
+<button class="incident-btn">View Global Incidents</button>
+</a>
+
+<a href="/status/{{ g.current_user.email.split('@')[0] }}" target="_blank">
+<button class="incident-btn">Public Status Page</button>
+</a>
+
+</div>
+
+<form method="POST" action="/add-monitor">
+
+<div class="add-box">
+
+<input type="text" name="url" placeholder="https://example.com" required>
+
+<button type="submit">Add Monitor</button>
+
+</div>
+
+</form>
+
+<div class="filter-bar">
+
+<input type="text" id="searchInput" placeholder="Search monitor">
+
+<select id="statusFilter">
+<option value="ALL">All</option>
+<option value="UP">UP</option>
+<option value="DOWN">DOWN</option>
+<option value="SLOW">SLOW</option>
+</select>
+
+</div>
+
+<div class="table-box">
+
+<table id="monitorTable">
+
+<tr>
+<th>#</th>
+<th>URL</th>
+<th>Status</th>
+<th>Uptime (24h)</th>
+<th>Uptime (30d)</th>
+<th>Incidents</th>
+<th>Response</th>
+<th>SSL Days</th>
+<th>Last Checked</th>
+<th>Actions</th>
+</tr>
+
+{% for monitor in monitors %}
+
+<tr>
+
+<td>{{loop.index}}</td>
+
+<td>
+<a href="/monitor/{{monitor.data.id}}/overview" class="url-link">
+{{monitor.data.url}}
+</a>
+</td>
+
+<td>
+
+{% if monitor.data.status=="UP" %}
+<span class="status-pill up">UP</span>
+{% elif monitor.data.status=="SLOW" %}
+<span class="status-pill slow">SLOW</span>
+{% else %}
+<span class="status-pill down">DOWN</span>
+{% endif %}
+
+</td>
+
+<td>
+
+{% if monitor.uptime>=99 %}
+<span class="uptime-good">{{monitor.uptime}}%</span>
+{% elif monitor.uptime>=95 %}
+<span class="uptime-mid">{{monitor.uptime}}%</span>
+{% else %}
+<span class="uptime-bad">{{monitor.uptime}}%</span>
+{% endif %}
+
+<div class="sla-bar">
+<div class="sla-fill" style="width:{{monitor.uptime}}%"></div>
+</div>
+
+</td>
+
+<td>
+
+{% if monitor.uptime_30d>=99 %}
+<span class="uptime-good">{{monitor.uptime_30d}}%</span>
+{% elif monitor.uptime_30d>=95 %}
+<span class="uptime-mid">{{monitor.uptime_30d}}%</span>
+{% else %}
+<span class="uptime-bad">{{monitor.uptime_30d}}%</span>
+{% endif %}
+
+<div class="sla-bar">
+<div class="sla-fill" style="width:{{monitor.uptime_30d}}%"></div>
+</div>
+
+</td>
+
+<td>
+
+<a href="/monitor/{{monitor.data.id}}/incidents"
+class="incident-link {% if monitor.incidents>0 %}alert{% endif %}">
+{{monitor.incidents}}
+</a>
+
+</td>
+
+<td>{{monitor.data.response_time or 0}}s</td>
+
+<td>
+
+{% if monitor.data.ssl_days_remaining < 15 %}
+<span style="color:var(--orange);font-weight:700">
+{{monitor.data.ssl_days_remaining}}
+</span>
+{% else %}
+{{monitor.data.ssl_days_remaining}}
+{% endif %}
+
+</td>
+
+<td>
+
+{% if monitor.data.last_checked %}
+{{monitor.data.last_checked.strftime("%d %b %H:%M:%S")}}
+{% else %}
+----------
+{% endif %}
+
+</td>
+
+<td>
+
+<div class="action-buttons">
+
+<a href="/monitor/{{monitor.data.id}}/overview">
+<button class="btn btn-open">Open</button>
+</a>
+
+<a href="/monitor/{{monitor.data.id}}/analytics">
+<button class="btn btn-blue">Analytics</button>
+</a>
+
+<a href="/monitor/{{monitor.data.id}}/incidents">
+<button class="btn btn-blue">Incidents</button>
+</a>
+
+<a href="/monitor/edit/{{monitor.data.id}}">
+<button class="btn btn-blue">Edit</button>
+</a>
+
+<form method="POST" action="/pause-monitor/{{monitor.data.id}}">
+<button class="btn btn-blue">
+{% if monitor.data.is_paused %}Resume{% else %}Pause{% endif %}
+</button>
+</form>
+
+<form method="POST"
+action="/delete-monitor/{{monitor.data.id}}"
+onsubmit="return confirmDelete();">
+
+<button class="btn btn-delete">Delete</button>
+
+</form>
+
+</div>
+
+</td>
+
+</tr>
+
+{% endfor %}
+
+</table>
+
+</div>
+
+</div>
+
+<script>
+
+function confirmDelete(){
+return confirm("Delete this monitor?");
+}
+
+const searchInput=document.getElementById("searchInput")
+const statusFilter=document.getElementById("statusFilter")
+const table=document.getElementById("monitorTable")
+
+function filterTable(){
+
+const search=searchInput.value.toLowerCase()
+const status=statusFilter.value
+
+for(let i=1;i<table.rows.length;i++){
+
+let row=table.rows[i]
+
+let url=row.cells[1].innerText.toLowerCase()
+let st=row.cells[2].innerText.trim()
+
+let show=true
+
+if(!url.includes(search)) show=false
+if(status!="ALL" && st!=status) show=false
+
+row.style.display=show?"":"none"
+
+}
+
+}
+
+searchInput.addEventListener("keyup",filterTable)
+statusFilter.addEventListener("change",filterTable)
+
+</script>
+
+{% endblock %}

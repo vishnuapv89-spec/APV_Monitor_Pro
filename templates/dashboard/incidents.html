@@ -1,0 +1,273 @@
+{% extends "layout.html" %}
+
+{% block title %}Incident History - APV Monitor Pro{% endblock %}
+
+{% block content %}
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+.container{
+    padding:40px;
+}
+
+/* HEADER */
+
+.header-section{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:30px;
+}
+
+.back-btn{
+    padding:10px 18px;
+    border-radius:10px;
+    border:none;
+    background:linear-gradient(135deg,#3b82f6,#00ffb3);
+    font-weight:600;
+    cursor:pointer;
+}
+
+/* FILTER */
+
+.filter-row{
+    display:flex;
+    gap:15px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+}
+
+.filter-row input,
+.filter-row select{
+    padding:10px 14px;
+    border-radius:10px;
+    border:none;
+    background:rgba(255,255,255,0.08);
+    color:white;
+}
+
+/* TABLE */
+
+.table-box{
+    border-radius:18px;
+    background:rgba(255,255,255,0.05);
+    backdrop-filter:blur(18px);
+    border:1px solid rgba(255,255,255,0.1);
+    overflow-x:auto;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th, td{
+    padding:16px;
+    text-align:center;
+    font-size:13px;
+}
+
+th{
+    opacity:.6;
+    text-transform:uppercase;
+}
+
+tr{
+    border-bottom:1px solid rgba(255,255,255,0.05);
+}
+
+tr:hover{
+    background:rgba(255,255,255,0.03);
+}
+
+/* STATUS */
+
+.status-pill{
+    padding:6px 14px;
+    border-radius:20px;
+    font-size:11px;
+    font-weight:600;
+}
+
+.down{ background:rgba(255,77,77,0.15); color:#ff4d4d; }
+.slow{ background:rgba(245,158,11,0.15); color:#f59e0b; }
+.ssl{ background:rgba(59,130,246,0.15); color:#3b82f6; }
+
+.lifecycle-open{
+    background:rgba(255,77,77,0.15);
+    color:#ff4d4d;
+}
+
+.lifecycle-closed{
+    background:rgba(0,255,179,0.15);
+    color:#00ffb3;
+}
+
+.message-box{
+    text-align:left;
+    max-width:300px;
+    word-break:break-word;
+}
+
+</style>
+
+<div class="container">
+
+<div class="header-section">
+
+<div>
+<h2>Incident History</h2>
+<p style="opacity:.6;">Monitor: {{ monitor.url }}</p>
+</div>
+
+<div>
+<a href="/dashboard">
+<button class="back-btn">← Back to Dashboard</button>
+</a>
+</div>
+
+</div>
+
+<form method="GET" class="filter-row">
+
+<input type="text"
+name="search"
+placeholder="Search root cause..."
+value="{{ search_query or '' }}">
+
+<select name="lifecycle">
+<option value="">All Lifecycle</option>
+<option value="ONGOING" {% if selected_lifecycle == "ONGOING" %}selected{% endif %}>Ongoing</option>
+<option value="RESOLVED" {% if selected_lifecycle == "RESOLVED" %}selected{% endif %}>Resolved</option>
+</select>
+
+<select name="status">
+<option value="">All Types</option>
+<option value="DOWN" {% if selected_status == "DOWN" %}selected{% endif %}>DOWN</option>
+<option value="SLOW" {% if selected_status == "SLOW" %}selected{% endif %}>SLOW</option>
+<option value="SSL_EXPIRING" {% if selected_status == "SSL_EXPIRING" %}selected{% endif %}>SSL Expiring</option>
+<option value="SSL_EXPIRED" {% if selected_status == "SSL_EXPIRED" %}selected{% endif %}>SSL Expired</option>
+</select>
+
+<select name="sort">
+<option value="latest">Newest First</option>
+<option value="oldest" {% if selected_sort == "oldest" %}selected{% endif %}>Oldest First</option>
+<option value="longest" {% if selected_sort == "longest" %}selected{% endif %}>Longest Duration</option>
+</select>
+
+<button class="back-btn" type="submit">Apply</button>
+
+</form>
+
+<div class="table-box">
+
+<table>
+
+<tr>
+<th>#</th>
+<th>Type</th>
+<th>Lifecycle</th>
+<th>Root Cause</th>
+<th>HTTP</th>
+<th>Started</th>
+<th>Resolved</th>
+<th>Duration</th>
+</tr>
+
+{% if incidents %}
+
+{% for incident in incidents %}
+
+<tr>
+
+<td>{{ loop.index }}</td>
+
+<td>
+
+<span class="status-pill
+
+{% if incident.status == 'DOWN' %}down
+{% elif incident.status == 'SLOW' %}slow
+{% elif incident.status == 'SSL_EXPIRED' %}down
+{% elif incident.status == 'SSL_EXPIRING' %}ssl
+{% else %}ssl{% endif %}">
+
+{{ incident.status.replace('_',' ') }}
+
+</span>
+
+</td>
+
+<td>
+
+<span class="status-pill
+
+{% if incident.lifecycle_status == 'ONGOING' %}lifecycle-open
+{% else %}lifecycle-closed{% endif %}">
+
+{{ incident.lifecycle_status }}
+
+</span>
+
+</td>
+
+<td class="message-box">
+{{ incident.root_cause or incident.message }}
+</td>
+
+<td>
+{{ incident.http_status_code or '-' }}
+</td>
+
+<td>
+{{ incident.started_at.strftime("%d %b %Y %H:%M:%S") }}
+</td>
+
+<td>
+
+{% if incident.resolved_at %}
+{{ incident.resolved_at.strftime("%d %b %Y %H:%M:%S") }}
+{% else %}
+----------
+
+{% endif %}
+
+</td>
+
+<td>
+
+{% if incident.duration_seconds %}
+{{ (incident.duration_seconds // 60) }}m {{ (incident.duration_seconds % 60) }}s
+
+{% elif incident.lifecycle_status == "ONGOING" %}
+Ongoing
+
+## {% else %}
+
+{% endif %}
+
+</td>
+
+</tr>
+
+{% endfor %}
+
+{% else %}
+
+<tr>
+<td colspan="8" style="padding:40px; opacity:.6;">
+No incidents recorded.
+</td>
+</tr>
+
+{% endif %}
+
+</table>
+
+</div>
+
+</div>
+
+{% endblock %}

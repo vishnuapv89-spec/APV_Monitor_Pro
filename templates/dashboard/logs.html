@@ -1,0 +1,328 @@
+{% extends "layout.html" %}
+
+{% block title %}Monitor Logs - APV Monitor Pro{% endblock %}
+
+{% block content %}
+
+<style>
+
+/* =========================
+PAGE CONTAINER
+========================= */
+
+.logs-container{
+max-width:1400px;
+margin:auto;
+padding:40px 20px;
+}
+
+/* =========================
+HEADER
+========================= */
+
+.logs-header{
+margin-bottom:30px;
+}
+
+.logs-header h2{
+margin:0;
+font-size:26px;
+}
+
+.logs-header p{
+margin-top:6px;
+opacity:.7;
+font-size:14px;
+}
+
+/* =========================
+BACK BUTTON
+========================= */
+
+.back-btn{
+padding:10px 18px;
+border-radius:10px;
+border:none;
+background:linear-gradient(135deg,#3b82f6,#00ffb3);
+color:white;
+font-weight:600;
+cursor:pointer;
+margin-bottom:20px;
+}
+
+/* =========================
+MONITOR NAV TABS
+========================= */
+
+.monitor-tabs{
+display:flex;
+gap:12px;
+margin-bottom:30px;
+flex-wrap:wrap;
+}
+
+.tab-btn{
+padding:10px 16px;
+border-radius:10px;
+background:rgba(255,255,255,0.05);
+border:1px solid rgba(255,255,255,0.08);
+color:white;
+text-decoration:none;
+font-weight:600;
+font-size:13px;
+}
+
+.tab-btn.active{
+background:linear-gradient(135deg,#3b82f6,#00ffb3);
+}
+
+/* =========================
+SEARCH
+========================= */
+
+.logs-toolbar{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:15px;
+flex-wrap:wrap;
+gap:10px;
+}
+
+.logs-search{
+padding:10px 14px;
+border-radius:8px;
+border:none;
+background:rgba(255,255,255,0.08);
+color:white;
+font-size:13px;
+min-width:220px;
+}
+
+/* =========================
+TABLE
+========================= */
+
+.logs-table{
+width:100%;
+border-collapse:collapse;
+background:rgba(255,255,255,0.04);
+border-radius:12px;
+overflow:hidden;
+border:1px solid rgba(255,255,255,0.08);
+}
+
+.logs-table th{
+background:#020617;
+padding:14px;
+font-size:11px;
+text-transform:uppercase;
+letter-spacing:.05em;
+opacity:.7;
+}
+
+.logs-table td{
+padding:12px;
+text-align:center;
+border-bottom:1px solid rgba(255,255,255,0.05);
+font-size:13px;
+}
+
+.logs-table tr:nth-child(even){
+background:rgba(255,255,255,0.02);
+}
+
+.logs-table tr:hover{
+background:rgba(0,255,179,0.05);
+}
+
+/* =========================
+STATUS PILLS
+========================= */
+
+.status-pill{
+padding:5px 12px;
+border-radius:20px;
+font-size:11px;
+font-weight:700;
+}
+
+.status-up{
+background:rgba(0,255,179,.15);
+color:#00ffb3;
+}
+
+.status-down{
+background:rgba(255,77,77,.15);
+color:#ff4d4d;
+}
+
+.status-slow{
+background:rgba(245,158,11,.15);
+color:#f59e0b;
+}
+
+/* =========================
+RESPONSE
+========================= */
+
+.response{
+font-weight:600;
+}
+
+/* =========================
+EMPTY STATE
+========================= */
+
+.empty{
+padding:40px;
+text-align:center;
+opacity:.6;
+}
+
+</style>
+
+
+<div class="logs-container">
+
+<a href="/monitor/{{monitor.id}}/overview">
+<button class="back-btn">← Back to Monitor</button>
+</a>
+
+<div class="logs-header">
+<h2>Monitor Logs</h2>
+<p>{{ monitor.url }}</p>
+</div>
+
+
+<!-- NAVIGATION TABS -->
+
+<div class="monitor-tabs">
+
+<a href="/monitor/{{ monitor.id }}/overview" class="tab-btn">
+Overview
+</a>
+
+<a href="/monitor/{{ monitor.id }}/analytics" class="tab-btn">
+Analytics
+</a>
+
+<a href="/monitor/{{ monitor.id }}/logs" class="tab-btn active">
+Logs
+</a>
+
+<a href="/monitor/{{ monitor.id }}/incidents" class="tab-btn">
+Incidents
+</a>
+
+</div>
+
+
+<!-- TOOLBAR -->
+
+<div class="logs-toolbar">
+
+<input
+type="text"
+id="logSearch"
+class="logs-search"
+placeholder="Search logs"
+/>
+
+<span style="opacity:.6;font-size:12px;">
+Last 500 checks
+</span>
+
+</div>
+
+
+<!-- LOG TABLE -->
+
+<table class="logs-table" id="logsTable">
+
+<tr>
+<th>Time</th>
+<th>Status</th>
+<th>Response</th>
+<th>HTTP Code</th>
+</tr>
+
+{% if logs %}
+
+{% for log in logs %}
+
+<tr>
+
+<td>
+{{ log.checked_at.strftime("%d %b %H:%M:%S") }}
+</td>
+
+<td>
+
+{% if log.status == "UP" %}
+<span class="status-pill status-up">UP</span>
+
+{% elif log.status == "SLOW" %}
+<span class="status-pill status-slow">SLOW</span>
+
+{% else %}
+<span class="status-pill status-down">DOWN</span>
+{% endif %}
+
+</td>
+
+<td class="response">
+{{ log.response_time }} s
+</td>
+
+<td>
+{{ log.http_status_code }}
+</td>
+
+</tr>
+
+{% endfor %}
+
+{% else %}
+
+<tr>
+<td colspan="4" class="empty">
+No logs yet
+</td>
+</tr>
+
+{% endif %}
+
+</table>
+
+</div>
+
+
+<script>
+
+/* =========================
+SEARCH FILTER
+========================= */
+
+const searchInput=document.getElementById("logSearch")
+const table=document.getElementById("logsTable")
+
+searchInput.addEventListener("keyup",function(){
+
+const value=this.value.toLowerCase()
+
+for(let i=1;i<table.rows.length;i++){
+
+const row=table.rows[i]
+
+const text=row.innerText.toLowerCase()
+
+row.style.display=text.includes(value)?"":"none"
+
+}
+
+})
+
+</script>
+
+{% endblock %}

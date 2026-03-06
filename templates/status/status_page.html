@@ -1,0 +1,179 @@
+{% extends "layout.html" %}
+
+{% block title %}Service Status - APV Monitor Pro{% endblock %}
+
+{% block content %}
+
+<style>
+
+.status-container{
+    max-width:1000px;
+    margin:auto;
+    padding:50px 20px;
+}
+
+.status-title{
+    font-size:34px;
+    font-weight:700;
+    margin-bottom:8px;
+}
+
+.status-sub{
+    opacity:.7;
+    margin-bottom:35px;
+}
+
+/* System Status Banner */
+
+.system-status{
+    display:inline-block;
+    padding:10px 18px;
+    border-radius:12px;
+    font-weight:600;
+    margin-bottom:40px;
+}
+
+.system-up{
+    background:rgba(0,255,150,.15);
+    color:#00ffb3;
+}
+
+.system-down{
+    background:rgba(255,80,80,.15);
+    color:#ff4d4d;
+}
+
+/* Monitor Cards */
+
+.monitor-card{
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:18px;
+    padding:22px;
+    margin-bottom:18px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    transition:.2s;
+}
+
+.monitor-card:hover{
+    transform:translateY(-3px);
+    box-shadow:0 0 25px rgba(0,255,179,.08);
+}
+
+.monitor-url{
+    font-weight:600;
+    font-size:15px;
+}
+
+/* Meta Info */
+
+.monitor-meta{
+    font-size:13px;
+    opacity:.7;
+    margin-top:6px;
+}
+
+/* Uptime Progress */
+
+.progress{
+    height:6px;
+    background:rgba(255,255,255,.1);
+    border-radius:10px;
+    margin-top:10px;
+    overflow:hidden;
+}
+
+.progress-bar{
+    height:100%;
+    background:linear-gradient(90deg,#00ffb3,#3b82f6);
+}
+
+/* Status Pill */
+
+.status-pill{
+    padding:6px 14px;
+    border-radius:20px;
+    font-size:12px;
+    font-weight:700;
+}
+
+.status-up{
+    background:rgba(0,255,150,.15);
+    color:#00ffb3;
+}
+
+.status-down{
+    background:rgba(255,80,80,.15);
+    color:#ff4d4d;
+}
+
+</style>
+
+<div class="status-container">
+
+    <div class="status-title">
+        Service Status
+    </div>
+
+    <div class="status-sub">
+        APV Monitor Pro Public Status Page
+    </div>
+
+    {% set down_count = monitors | selectattr("status","equalto","DOWN") | list | length %}
+
+    {% if down_count > 0 %}
+        <div class="system-status system-down">
+            Some Systems Experiencing Issues
+        </div>
+    {% else %}
+        <div class="system-status system-up">
+            All Systems Operational
+        </div>
+    {% endif %}
+
+
+    {% for monitor in monitors %}
+
+    <div class="monitor-card">
+
+        <div>
+
+            <div class="monitor-url">
+                {{ monitor.url }}
+            </div>
+
+            <div class="monitor-meta">
+                Uptime: {{ monitor.uptime }}%
+                &nbsp;&nbsp;
+                Response: {{ monitor.response_time }}s
+                &nbsp;&nbsp;
+                Incidents: {{ monitor.incidents }}
+            </div>
+
+            <div class="progress">
+                <div class="progress-bar" style="width: {{ monitor.uptime }}%"></div>
+            </div>
+
+        </div>
+
+        <div>
+            {% if monitor.status == "UP" %}
+                <span class="status-pill status-up">
+                    Operational
+                </span>
+            {% else %}
+                <span class="status-pill status-down">
+                    Down
+                </span>
+            {% endif %}
+        </div>
+
+    </div>
+
+    {% endfor %}
+
+</div>
+
+{% endblock %}

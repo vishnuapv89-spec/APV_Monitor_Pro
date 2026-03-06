@@ -1,0 +1,446 @@
+{% extends "layout.html" %}
+
+{% block title %}Monitor Overview - APV Monitor Pro{% endblock %}
+
+{% block content %}
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+:root{
+--green:#00ffb3;
+--blue:#3b82f6;
+--red:#ff4d4d;
+--orange:#f59e0b;
+}
+
+/* ================= CONTAINER ================= */
+
+.container{
+padding:50px;
+}
+
+/* ================= HEADER ================= */
+
+.header{
+margin-bottom:20px;
+}
+
+.header h1{
+margin:0;
+font-size:28px;
+}
+
+.current-status{
+margin-top:10px;
+font-weight:700;
+font-size:16px;
+}
+
+.status-up{color:var(--green);}
+.status-down{color:var(--red);}
+.status-slow{color:var(--orange);}
+
+/* ================= BACK BUTTON ================= */
+
+.back-btn{
+padding:10px 18px;
+border-radius:12px;
+border:none;
+background:linear-gradient(135deg,var(--blue),var(--green));
+color:white;
+font-weight:600;
+cursor:pointer;
+margin-bottom:30px;
+}
+
+/* ================= TABS ================= */
+
+.monitor-tabs{
+display:flex;
+gap:14px;
+margin-bottom:40px;
+}
+
+.tab-btn{
+padding:10px 18px;
+border-radius:12px;
+background:rgba(255,255,255,0.05);
+border:1px solid rgba(255,255,255,0.08);
+color:white;
+text-decoration:none;
+font-weight:700;
+}
+
+.tab-btn.active{
+background:linear-gradient(135deg,var(--blue),var(--green));
+}
+
+/* ================= GRID ================= */
+
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+gap:30px;
+}
+
+.card{
+padding:30px;
+border-radius:24px;
+background:rgba(255,255,255,0.05);
+backdrop-filter:blur(25px);
+border:1px solid rgba(255,255,255,0.08);
+transition:.3s;
+}
+
+.card:hover{
+transform:translateY(-6px);
+box-shadow:0 0 40px rgba(0,255,179,.08);
+}
+
+.card h3{
+margin:0;
+font-size:13px;
+text-transform:uppercase;
+opacity:.6;
+}
+
+.card h2{
+margin-top:14px;
+font-size:30px;
+font-weight:800;
+}
+
+/* ================= TIMELINE ================= */
+
+.timeline-wrapper{
+margin-top:50px;
+}
+
+.timeline-bars{
+display:flex;
+align-items:center;
+gap:4px;
+overflow-x:auto;
+padding:10px 0;
+min-height:30px;
+}
+
+.timeline-block{
+width:12px;
+height:24px;
+min-width:12px;
+border-radius:3px;
+flex-shrink:0;
+}
+
+.timeline-up{background:var(--green);}
+.timeline-down{background:var(--red);}
+.timeline-slow{background:var(--orange);}
+
+/* ================= ANALYTICS ================= */
+
+.analytics-section{
+margin-top:60px;
+padding:40px;
+border-radius:28px;
+background:rgba(255,255,255,0.05);
+border:1px solid rgba(255,255,255,0.08);
+}
+
+.analytics-title{
+font-size:18px;
+font-weight:800;
+margin-bottom:25px;
+}
+
+.analytics-grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+gap:25px;
+}
+
+.analytics-box{
+padding:22px;
+border-radius:20px;
+background:rgba(255,255,255,0.04);
+border:1px solid rgba(255,255,255,0.08);
+}
+
+.analytics-box h4{
+margin:0;
+font-size:12px;
+text-transform:uppercase;
+opacity:.6;
+}
+
+.analytics-box h2{
+margin-top:10px;
+font-size:24px;
+}
+
+/* ================= ACTIVITY ================= */
+
+.activity-wrapper{
+display:flex;
+gap:3px;
+flex-wrap:wrap;
+margin-top:15px;
+}
+
+.activity-bar{
+width:5px;
+height:24px;
+border-radius:3px;
+}
+
+.bar-up{background:var(--green);}
+.bar-down{background:var(--red);}
+.bar-slow{background:var(--orange);}
+
+.graph-container{
+margin-top:40px;
+}
+
+</style>
+
+<div class="container">
+
+<a href="/dashboard">
+<button class="back-btn">← Back to Dashboard</button>
+</a>
+
+<div class="header">
+
+<h1>{{ monitor.url }}</h1>
+
+<div class="current-status">
+
+Current Status:
+
+{% if monitor.status == "UP" %} <span class="status-up">UP</span>
+{% elif monitor.status == "SLOW" %} <span class="status-slow">SLOW</span>
+{% else %} <span class="status-down">DOWN</span>
+{% endif %}
+
+</div>
+
+</div>
+
+<!-- TABS -->
+
+<div class="monitor-tabs">
+<a href="/monitor/{{ monitor.id }}/overview" class="tab-btn active">Overview</a>
+<a href="/monitor/{{ monitor.id }}/analytics" class="tab-btn">Analytics</a>
+<a href="/monitor/{{ monitor.id }}/logs" class="tab-btn">Logs</a>
+<a href="/monitor/{{ monitor.id }}/incidents" class="tab-btn">Incidents</a>
+</div>
+
+<!-- STATS -->
+
+<div class="grid">
+
+<div class="card">
+<h3>Uptime (24 Hours)</h3>
+<h2 style="color:var(--green);">{{ uptime_24h }}%</h2>
+</div>
+
+<div class="card">
+<h3>Total Incidents</h3>
+<h2>{{ total_incidents }}</h2>
+</div>
+
+<div class="card">
+<h3>Open Incidents</h3>
+<h2 style="color:var(--red);">{{ open_incidents }}</h2>
+</div>
+
+<div class="card">
+<h3>Resolved Incidents</h3>
+<h2 style="color:var(--green);">{{ resolved_incidents }}</h2>
+</div>
+
+<div class="card">
+<h3>MTBF (Hours)</h3>
+<h2>{{ mtbf }}</h2>
+</div>
+
+<div class="card">
+<h3>Response Time</h3>
+<h2>{{ monitor.response_time }}s</h2>
+</div>
+
+<div class="card">
+<h3>SSL Days Remaining</h3>
+
+{% if monitor.ssl_days_remaining < 15 %}
+
+<h2 style="color:var(--orange);">{{ monitor.ssl_days_remaining }}</h2>
+{% else %}
+<h2>{{ monitor.ssl_days_remaining }}</h2>
+{% endif %}
+
+</div>
+
+<div class="card">
+<h3>Last Checked</h3>
+<h2>
+{% if monitor.last_checked %}
+{{ monitor.last_checked.strftime("%d %b %H:%M:%S") }}
+{% else %}
+----------
+{% endif %}
+</h2>
+</div>
+
+</div>
+
+<!-- TIMELINE -->
+
+<div class="timeline-wrapper">
+
+<h3>24h Status Timeline</h3>
+
+<div class="timeline-bars" id="timelineBars"></div>
+
+</div>
+
+<!-- ANALYTICS -->
+
+<div class="analytics-section">
+
+<div class="analytics-title">
+Advanced Uptime & Performance Analytics
+</div>
+
+<div class="analytics-grid">
+
+<div class="analytics-box">
+<h4>Uptime (7 Days)</h4>
+<h2>{{ uptime_7d }}%</h2>
+</div>
+
+<div class="analytics-box">
+<h4>Uptime (30 Days)</h4>
+<h2>{{ uptime_30d }}%</h2>
+</div>
+
+<div class="analytics-box">
+<h4>Uptime (365 Days)</h4>
+<h2>{{ uptime_365d }}%</h2>
+</div>
+
+<div class="analytics-box">
+<h4>Response (Min / Max / Avg)</h4>
+<h2>{{ response_min }} / {{ response_max }} / {{ response_avg }}</h2>
+</div>
+
+</div>
+
+<div style="margin-top:35px;">
+<strong>Last 24h Activity</strong>
+<div class="activity-wrapper" id="activityBars"></div>
+</div>
+
+<div class="graph-container">
+<canvas id="responseChart" height="90"></canvas>
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+/* ===== TIMELINE ===== */
+
+fetch("/api/monitor/{{ monitor.id }}/timeline")
+.then(res => res.json())
+.then(data => {
+
+const container = document.getElementById("timelineBars")
+container.innerHTML = ""
+
+const timeline = data.timeline || []
+
+timeline.forEach(log => {
+
+const block = document.createElement("div")
+block.className = "timeline-block"
+
+if(log.status === "UP") block.classList.add("timeline-up")
+else if(log.status === "SLOW") block.classList.add("timeline-slow")
+else block.classList.add("timeline-down")
+
+block.title = log.status + " • " + log.timestamp
+
+container.appendChild(block)
+
+})
+
+})
+
+/* ===== ACTIVITY ===== */
+
+fetch("/api/monitor/{{ monitor.id }}/activity-24h")
+.then(res=>res.json())
+.then(data=>{
+
+const container=document.getElementById("activityBars")
+
+data.forEach(log=>{
+
+const bar=document.createElement("div")
+
+bar.classList.add("activity-bar")
+
+if(log.status==="UP") bar.classList.add("bar-up")
+else if(log.status==="SLOW") bar.classList.add("bar-slow")
+else bar.classList.add("bar-down")
+
+container.appendChild(bar)
+
+})
+
+})
+
+/* ===== RESPONSE GRAPH ===== */
+
+fetch("/api/monitor/{{ monitor.id }}/response-times?days=7")
+.then(res=>res.json())
+.then(data=>{
+
+const ctx=document.getElementById("responseChart")
+
+const labels=data.map(d=>d.timestamp)
+const response=data.map(d=>d.response_time)
+
+new Chart(ctx,{
+type:"line",
+data:{
+labels:labels,
+datasets:[{
+label:"Response Time",
+data:response,
+borderColor:"#3b82f6",
+backgroundColor:"rgba(59,130,246,0.2)",
+fill:true,
+tension:0.3
+}]
+},
+options:{
+plugins:{legend:{display:false}},
+scales:{
+x:{display:false},
+y:{beginAtZero:true}
+}
+}
+})
+
+})
+
+</script>
+
+{% endblock %}
