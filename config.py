@@ -1,3 +1,8 @@
+# ======================================================
+# APV Monitor Pro
+# Configuration
+# ======================================================
+
 import os
 from dotenv import load_dotenv
 
@@ -71,7 +76,7 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 class Config:
     """
     APV Monitor Pro
-    Production + Demo Configuration
+    Production + Development Configuration
     """
 
     # --------------------------------------------------
@@ -131,9 +136,10 @@ class Config:
         MAIL_USERNAME
     )
 
+    # Prevent SMTP crashes on Render free plan
     MAIL_SUPPRESS_SEND = env_bool(
         "MAIL_SUPPRESS_SEND",
-        False
+        True
     )
 
     MAIL_MAX_EMAILS = None
@@ -162,9 +168,10 @@ class Config:
     # MONITORING ENGINE
     # --------------------------------------------------
 
+    # Faster failure detection
     MONITOR_TIMEOUT = env_int(
         "MONITOR_TIMEOUT",
-        10
+        5
     )
 
     DEFAULT_CHECK_INTERVAL = env_int(
@@ -174,7 +181,7 @@ class Config:
 
     MAX_MONITOR_RETRIES = env_int(
         "MAX_MONITOR_RETRIES",
-        3
+        2
     )
 
     MONITOR_RETRY_DELAY = env_int(
@@ -219,9 +226,10 @@ class Config:
     # SCHEDULER SETTINGS
     # --------------------------------------------------
 
+    # Render-safe scheduler interval
     SCHEDULER_INTERVAL_SECONDS = env_int(
         "SCHEDULER_INTERVAL_SECONDS",
-        30
+        60
     )
 
     MAX_WORKER_THREADS = env_int(
