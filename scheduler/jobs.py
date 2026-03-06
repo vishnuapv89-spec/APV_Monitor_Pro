@@ -190,7 +190,7 @@ def start_scheduler(app):
 
         interval = app.config.get(
             "SCHEDULER_INTERVAL_SECONDS",
-            30
+            60
         )
 
         if not existing_job:
@@ -202,7 +202,11 @@ def start_scheduler(app):
                 seconds=interval,
                 args=[app],
                 replace_existing=True,
-                max_instances=1,
+
+                # Prevent job blocking issues
+                max_instances=3,
+
+                # Merge skipped executions
                 coalesce=True
             )
 
