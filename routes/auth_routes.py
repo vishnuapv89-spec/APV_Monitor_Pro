@@ -9,8 +9,7 @@ from flask import (
     render_template,
     session,
     url_for,
-    flash,
-    current_app
+    flash
 )
 
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -79,8 +78,6 @@ Welcome to APV Monitor Pro 🚀
 
 Your account has been created successfully.
 
-You can now login to your dashboard.
-
 Login URL:
 {login_url}
 
@@ -114,28 +111,24 @@ def signup():
     # ================= VALIDATIONS =================
 
     if not email or not password or not confirm_password:
-
         return render_template(
             "auth/signup.html",
             error="All fields are required"
         )
 
     if not is_valid_email(email):
-
         return render_template(
             "auth/signup.html",
             error="Only @apvtechnologies.com and @gmail.com emails allowed"
         )
 
     if len(password) < 8:
-
         return render_template(
             "auth/signup.html",
             error="Password must be at least 8 characters"
         )
 
     if password != confirm_password:
-
         return render_template(
             "auth/signup.html",
             error="Passwords do not match"
@@ -144,7 +137,6 @@ def signup():
     existing_user = User.query.filter_by(email=email).first()
 
     if existing_user:
-
         return render_template(
             "auth/signup.html",
             error="User already exists"
@@ -166,7 +158,7 @@ def signup():
         db.session.add(new_user)
         db.session.commit()
 
-    except Exception as e:
+    except Exception:
 
         db.session.rollback()
 
@@ -176,8 +168,9 @@ def signup():
         )
 
     # ================= SEND EMAIL =================
+    # Disabled for Render demo (SMTP can block container)
 
-    send_verification_email(email)
+    # send_verification_email(email)
 
     flash("Account created successfully. Please login.", "success")
 
@@ -198,7 +191,6 @@ def login():
     password = request.form.get("password", "").strip()
 
     if not email or not password:
-
         return render_template(
             "auth/login.html",
             error="Please enter email and password"
@@ -207,21 +199,18 @@ def login():
     user = User.query.filter_by(email=email).first()
 
     if not user:
-
         return render_template(
             "auth/login.html",
             error="User not found"
         )
 
     if not check_password_hash(user.password, password):
-
         return render_template(
             "auth/login.html",
             error="Invalid credentials"
         )
 
     if not user.is_verified:
-
         return render_template(
             "auth/login.html",
             error="Email not verified"
