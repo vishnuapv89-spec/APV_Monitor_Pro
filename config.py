@@ -95,21 +95,24 @@ class Config:
     # --------------------------------------------------
 
     if DATABASE_URL:
+        # Production → PostgreSQL (Render)
         SQLALCHEMY_DATABASE_URI = DATABASE_URL
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+            "pool_size": 5,
+            "max_overflow": 10
+        }
     else:
+        # Local Development → SQLite
         SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(INSTANCE_PATH, 'apv_monitor.db')}"
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "connect_args": {
+                "check_same_thread": False
+            }
+        }
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        "connect_args": {
-            "check_same_thread": False
-        },
-        "pool_pre_ping": True,
-        "pool_recycle": 300,
-        "pool_size": 5,
-        "max_overflow": 10
-    }
 
     # --------------------------------------------------
     # MAIL CONFIGURATION
